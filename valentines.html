@@ -23,10 +23,9 @@
             background-color: var(--bg-color);
             font-family: 'Pangolin', cursive;
             overflow: hidden;
-            touch-action: none; /* Prevents scrolling while chasing the button */
+            touch-action: none;
         }
 
-        /* Floating background hearts */
         .bg-heart {
             position: absolute;
             color: rgba(255, 133, 161, 0.2);
@@ -88,23 +87,18 @@
             box-shadow: 0 5px 0 #ff4d6d;
         }
 
-        #yesBtn:active {
-            transform: translateY(4px);
-            box-shadow: 0 1px 0 #ff4d6d;
-        }
-
         #noBtn {
             background-color: #adb5bd;
             color: white;
             position: relative;
         }
 
-        /* Surprise Modal */
+        /* The Final Modal - No Close Button */
         #modal {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 1); /* Solid background to hide the main page */
             z-index: 1000;
             flex-direction: column;
             justify-content: center;
@@ -121,7 +115,7 @@
         }
 
         .surprise-text {
-            font-size: 1.8rem;
+            font-size: 2rem;
             color: #c9184a;
             margin-bottom: 20px;
         }
@@ -134,7 +128,7 @@
             <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjU1NjFnYTNteGM0OTM3M2hheWI3bDA1Ynp2bmJ6enlwNjg4d3U4aiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jVc9j9QXBUKkXi0nVn/giphy.gif" alt="Love Frog">
         </div>
         <h1>Will you be my Valentine?</h1>
-        <p>Choose wisely... (or try to) 😉</p>
+        <p>Choose wisely... you can't leave until you do! 😉</p>
         <div class="btn-group">
             <button id="yesBtn">YES!</button>
             <button id="noBtn">No</button>
@@ -144,11 +138,28 @@
     <div id="modal">
         <div class="surprise-text" id="msg"></div>
         <div id="meme-container"></div>
-        <button id="closeBtn" style="background: var(--hot-pink); color: white;">Close & Do it again!</button>
+        <p style="color: #ff85a1;">💖 Mission Accomplished 💖</p>
     </div>
 
     <script>
-        // 1. Create floating background hearts
+        let hasChosenYes = false;
+
+        // 1. Lock Attempt: Prevent Back Button & Tab Closing
+        window.onbeforeunload = function() {
+            if (!hasChosenYes) {
+                return "You haven't said YES yet! You can't leave me like this!";
+            }
+        };
+
+        // Push a state so back button just reloads this page
+        history.pushState(null, null, location.href);
+        window.onpopstate = function() {
+            if (!hasChosenYes) {
+                history.go(1);
+            }
+        };
+
+        // 2. Floating hearts
         function createBgHearts() {
             for (let i = 0; i < 15; i++) {
                 const heart = document.createElement('div');
@@ -162,9 +173,8 @@
         }
         createBgHearts();
 
-        // 2. The Elusive No Button
+        // 3. The Unstoppable No Button
         const noBtn = document.getElementById('noBtn');
-        
         const flee = () => {
             const x = Math.random() * (window.innerWidth - noBtn.offsetWidth);
             const y = Math.random() * (window.innerHeight - noBtn.offsetHeight);
@@ -179,61 +189,50 @@
             flee();
         });
 
-        // 3. The 10+ Random Surprises
+        // 4. One-time Surprises
         const yesBtn = document.getElementById('yesBtn');
         const modal = document.getElementById('modal');
         const msg = document.getElementById('msg');
         const memeContainer = document.getElementById('meme-container');
-        const closeBtn = document.getElementById('closeBtn');
 
         const surprises = [
             { t: "LETS GOOOOO! 🚀", m: "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExajN5NjJpMXo1bHoxYmtrN3p1bWhzYTh2cnBqdmJmYTZsMmd2NG4weiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/XCm6aoloWyUkwUuqkf/giphy.gif" },
             { t: "I've already told your parents.", m: "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExNnU1dWViZzByb2h4aW03d3k0dmZiZTVzc3p4dHIwM3RuZG5vcTYycCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Kr4fFCKU5X0vkDF0ta/giphy.gif" },
             { t: "You have made the best decision of your life.", m: "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzYweTA0OWpqN2lmbjhrZDl0NTVyejJmcXQxaW94ZTBjcG54dDk1bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/rO30X1Eb6LluHGFDfD/giphy.gif" },
             { t: "Regardless, I knew you were interested 😍", m: "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExdXczcGl3YmRuMWp2NjlxZnh6NWs1bmpwZ2I3ZmkxaWZvMjVzbDczYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/10UUe8ZsLnaqwo/giphy.gif" },
-            { t: "Processing love... 100% Complete.", m: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExM2Z5MWkya2F3eW9nMW95bTZlbmUwZHJid3ltYnN5cjZ5cjNqc203eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/m1T2cBIL3DHDRxDBfz/giphy.gif" },
-            { t: "Wait, let me go buy a ring real quick!", m: "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMXpyaG15MXZsNmVqMTQwaWR2dnR6ZWt1dXlmdDE3cjNyMmd5amg0NCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/usHD5PdvklhGItLqR8/giphy.gif" },
-            { t: "Task Failed Successfully: You fell for me!", m: "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExNG55N29yNXBtc3drd25qZ2tvM2xiaWtmdGdjNjFkbnIwZHpibzR3ZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/D9j761FH8SYJLyW9WO/giphy.gif" },
-            { t: "You + Me = End Game.", m: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExYTNnY25sNzZ2NTJrcGlmaDdmbjJkeHV1NW10d2xpaDd5Njl2a3lnNCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/sNPeJFq6YNEvLZdcqX/giphy.gif" },
-            { t: "I'm telling everyone on TikTok.", m: "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExOWIyOHQ0cHZha3MwemMxZDFrc2ticWJwbDFydjhia2l2ajdrOHlxcSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/SxMIBMa8LGFAsaWrVt/giphy.gif" },
-            { t: "Congratulations, you win ME!", m: "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExdXlpcW9xbHpsYTV4dnBuMnlmdzN4MG45N2E4aWdjeWw1bmF0MzJ3eiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/cdNSp4L5vCU7aQrYnV/giphy.gif" },
-            { t: "Preparing for our date like...", m: "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExMmhwbnN1NnZsbWhiMWhoZm1obGhheW5zdmE5a2pvdDluam9oczV4NyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jnDTHVCj2lj0AyaF2A/giphy.gif" },
-            { t: "POV: You just said yes to the coolest person ever.", m: "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHRrejBoMTJ0Y3ptbWFzdzdnODBpeDN3amJzdmliZDhzY2ViMGtubSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/FaprjZwxNX5n3Bpna4/giphy.gif" }
+            { t: "Processing love... 100% Complete.", m: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExM2Z5MWkya2F3eW9nMW95bTZlbmUwZHJid3ltYnN5cjZ5cjNqc203eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/m1T2cBIL3DHDRxDBfz/giphy.gif" }
         ];
 
         yesBtn.addEventListener('click', () => {
+            hasChosenYes = true;
             const random = surprises[Math.floor(Math.random() * surprises.length)];
             msg.innerText = random.t;
             memeContainer.innerHTML = `<img src="${random.m}" class="meme-img">`;
             modal.style.display = 'flex';
             
-            // Spawn some confetti hearts
-            for(let i=0; i<20; i++) {
-                setTimeout(createConfetti, i * 50);
+            // Celebration
+            for(let i=0; i<50; i++) {
+                setTimeout(createConfetti, i * 30);
             }
         });
 
         function createConfetti() {
             const c = document.createElement('div');
-            c.innerText = '💖';
+            c.innerText = ['💖','✨','🍕','🧸'][Math.floor(Math.random()*4)];
             c.style.position = 'fixed';
             c.style.left = Math.random() * 100 + 'vw';
             c.style.top = '100vh';
             c.style.fontSize = '2rem';
             c.style.zIndex = '1001';
-            c.style.transition = 'transform 2s linear, opacity 2s';
+            c.style.transition = 'transform 3s linear, opacity 3s';
             document.body.appendChild(c);
             
             setTimeout(() => {
-                c.style.transform = `translateY(-120vh) rotate(${Math.random() * 360}deg)`;
+                c.style.transform = `translateY(-120vh) rotate(${Math.random() * 720}deg)`;
                 c.style.opacity = '0';
             }, 10);
-            setTimeout(() => c.remove(), 2000);
+            setTimeout(() => c.remove(), 3000);
         }
-
-        closeBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
-        });
     </script>
 </body>
 </html>
