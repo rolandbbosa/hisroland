@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ImagePorn Board Scraper</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <h1>ImagePorn Board Scraper</h1>
+        <p>Browser implementation of <code>main.py</code> and <code>post.py</code>: scrape Reddit hot posts, load comments, persist scraped links locally, and post scraped content to Firebase.</p>
+      </div>
+      <div class="actions">
+        <button id="scrapeButton">Scrape Reddit Hot Posts</button>
+        <button id="postButton">Post All Scraped Posts</button>
+        <button id="clearLinksButton">Clear Stored Links</button>
+        <button id="downloadJsonButton">Download data.json</button>
+        <button id="downloadLinksButton">Download links.txt</button>
+      </div>
+    </header>
+
+    <section class="status-panel">
+      <div class="status-block">
+        <strong>Status</strong>
+        <div id="statusLog">Ready to scrape.</div>
+      </div>
+      <div class="status-block stats">
+        <strong>Saved Data</strong>
+        <div>Stored posts: <span id="postsCount">0</span></div>
+        <div>Stored links: <span id="linksCount">0</span></div>
+      </div>
+    </section>
+
+    <section class="posts-section">
+      <h2>Scraped Posts</h2>
+      <div id="postsContainer" class="posts-container">
+        <p class="empty-state">No posts loaded yet.</p>
+      </div>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
