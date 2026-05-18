@@ -3,45 +3,1207 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ImagePorn Board Scraper</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>4chan Board Scraper</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@400;700;900&display=swap" rel="stylesheet" />
+
+  <!-- Firebase Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0d0f;
+      --bg2:       #111418;
+      --bg3:       #161b21;
+      --border:    #1f2831;
+      --border2:   #263040;
+      --accent:    #00aaff;
+      --accent2:   #005f8a;
+      --green:     #00e676;
+      --green-dim: #003d1f;
+      --red:       #ff1744;
+      --yellow:    #ffaa00;
+      --text:      #c9d6e3;
+      --text-dim:  #596878;
+      --text-faint:#2e3d4d;
+      --mono: 'Share Tech Mono', 'Courier New', monospace;
+      --sans: 'Exo 2', 'Segoe UI', Arial, sans-serif;
+    }
+
+    body {
+      font-family: var(--mono);
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px 20px;
+      min-height: 100vh;
+      background-image: repeating-linear-gradient(
+        0deg, transparent, transparent 39px,
+        rgba(0,170,255,0.018) 40px
+      );
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .wrap { max-width: 980px; margin: 0 auto; }
+
+    /* ── Header ─────────────────────────── */
+    .header-block {
+      border: 1px solid var(--border2);
+      border-top: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 22px 24px;
+      background: var(--bg2);
+      position: relative;
+      overflow: hidden;
+    }
+    .header-block::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 60px;
+      background: linear-gradient(180deg, rgba(0,170,255,0.06) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    h1 {
+      font-family: var(--sans);
+      font-size: 1.7rem;
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+    h1 span { color: var(--text-dim); font-weight: 400; }
+
+    h2 {
+      font-family: var(--sans);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin: 28px 0 12px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h2::before { content: '//'; color: var(--accent2); }
+
+    h3 {
+      font-family: var(--sans);
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1.4;
+      color: var(--text);
+    }
+
+    .subtitle { font-size: 0.8rem; color: var(--text-dim); margin-top: 5px; }
+
+    /* ── Config row ──────────────────────── */
+    .config-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-end;
+      margin-top: 16px;
+      padding: 12px 14px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    .config-field { display: flex; flex-direction: column; gap: 4px; }
+    .config-field label {
+      font-size: 0.72rem; color: var(--text-dim);
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+    .config-field select,
+    .config-field input[type="number"] {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border2);
+      border-radius: 3px;
+      padding: 6px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+      min-width: 100px;
+    }
+    .config-field select:focus,
+    .config-field input[type="number"]:focus { border-color: var(--accent); }
+
+    /* ── Note banner ─────────────────────── */
+    .note {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: rgba(0,170,255,0.05);
+      border-left: 3px solid var(--accent2);
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      border-radius: 0 4px 4px 0;
+      line-height: 1.7;
+    }
+    .note strong { color: var(--accent); }
+    .note code {
+      background: var(--bg); padding: 1px 5px;
+      border-radius: 2px; color: var(--green);
+    }
+
+    /* ── Proxy pill ──────────────────────── */
+    .proxy-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 8px;
+      font-size: 0.73rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border2);
+      color: var(--text-dim);
+    }
+    .proxy-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-faint); }
+    .proxy-pill.ok  { color: var(--green); border-color: #003d1f; }
+    .proxy-pill.ok  .dot { background: var(--green); }
+    .proxy-pill.err { color: var(--red); border-color: #3d0010; }
+    .proxy-pill.err .dot { background: var(--red); }
+
+    /* ── Buttons ────────────────────────── */
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+
+    button {
+      padding: 8px 18px;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      border: 1px solid var(--border2);
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+      background: var(--bg3);
+      color: var(--text-dim);
+    }
+    button:hover:not(:disabled) {
+      background: var(--accent); border-color: var(--accent);
+      color: #000; box-shadow: 0 0 14px rgba(0,170,255,0.3);
+    }
+    button.danger:hover:not(:disabled) {
+      background: var(--red); border-color: var(--red);
+      box-shadow: 0 0 14px rgba(255,23,68,0.3);
+    }
+    button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ── Status ─────────────────────────── */
+    .status-row {
+      display: grid; gap: 12px;
+      margin-top: 16px; grid-template-columns: 1fr;
+    }
+    @media (min-width: 600px) { .status-row { grid-template-columns: 2fr 1fr; } }
+
+    .log-box {
+      background: #060809;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px 14px;
+      font-size: 0.76rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      min-height: 80px;
+      max-height: 220px;
+      overflow-y: auto;
+      color: var(--green);
+    }
+    .log-box::-webkit-scrollbar { width: 4px; }
+    .log-box::-webkit-scrollbar-track { background: var(--bg); }
+    .log-box::-webkit-scrollbar-thumb { background: var(--accent2); border-radius: 2px; }
+
+    .stats-box {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 4px; padding: 14px;
+      font-size: 0.8rem; display: flex; flex-direction: column; gap: 8px;
+    }
+    .stats-box .stat { color: var(--text-dim); display: flex; justify-content: space-between; gap: 8px; }
+    .stats-box .stat span { color: var(--accent); font-weight: bold; }
+
+    /* ── Progress bar ────────────────────── */
+    .progress-wrap {
+      margin-top: 10px; height: 3px;
+      background: var(--border); border-radius: 2px;
+      overflow: hidden; display: none;
+    }
+    .progress-wrap.visible { display: block; }
+    .progress-bar {
+      height: 100%; background: var(--accent);
+      border-radius: 2px; transition: width 0.3s ease; width: 0%;
+    }
+
+    /* ── Thread cards ───────────────────── */
+    .post-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 18px; margin-bottom: 16px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      position: relative;
+    }
+    .post-card:hover {
+      border-color: var(--border2);
+      box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+    }
+    .post-card.is-posted { border-left: 3px solid var(--green); }
+
+    .thread-id {
+      position: absolute; top: 12px; right: 14px;
+      font-size: 0.7rem; color: var(--text-faint); letter-spacing: 1px;
+    }
+
+    .post-head {
+      display: flex; align-items: flex-start;
+      gap: 10px; flex-wrap: wrap;
+      margin-bottom: 10px; padding-right: 80px;
+    }
+
+    .badge {
+      flex-shrink: 0; display: inline-block;
+      padding: 2px 8px; border-radius: 2px;
+      background: var(--green-dim); border: 1px solid #004d1a;
+      color: var(--green); font-size: 0.68rem;
+      font-weight: bold; letter-spacing: 1px; text-transform: uppercase;
+    }
+    .badge.skipped {
+      background: rgba(255,170,0,0.1); border-color: rgba(255,170,0,0.3);
+      color: var(--yellow);
+    }
+
+    .board-tag {
+      flex-shrink: 0; display: inline-block;
+      padding: 2px 8px; border-radius: 2px;
+      background: rgba(0,170,255,0.08); border: 1px solid var(--accent2);
+      color: var(--accent); font-size: 0.68rem;
+      font-weight: bold; letter-spacing: 1px;
+    }
+
+    .post-meta {
+      display: flex; flex-wrap: wrap; gap: 12px;
+      font-size: 0.76rem; color: var(--text-dim); margin-bottom: 12px;
+    }
+    .post-meta .replies-count { color: var(--accent); }
+    .post-meta .img-count { color: var(--yellow); }
+
+    .media-wrap {
+      margin: 12px 0; border-radius: 4px;
+      overflow: hidden; background: var(--bg);
+      display: inline-block; max-width: 100%;
+    }
+    .media-wrap img {
+      max-width: 100%; max-height: 400px;
+      display: block; cursor: zoom-in;
+    }
+    .media-wrap img.expanded { max-height: none; cursor: zoom-out; }
+    .media-wrap video { max-width: 100%; max-height: 400px; display: block; }
+
+    .post-comment {
+      font-size: 0.82rem; color: #a0b4c8;
+      background: rgba(0,0,0,0.25);
+      border-left: 2px solid var(--border2);
+      padding: 10px 13px;
+      border-radius: 0 4px 4px 0;
+      margin: 10px 0; max-height: 160px;
+      overflow-y: auto; line-height: 1.6;
+      word-break: break-word;
+    }
+    .gt { color: #789922; }
+
+    /* ── Replies ────────────────────────── */
+    .replies-label {
+      font-size: 0.72rem; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--text-faint);
+      margin: 14px 0 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .replies-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    ul.replies-list { list-style: none; padding: 0; }
+
+    .reply-item {
+      padding: 8px 12px; border-left: 2px solid var(--border);
+      margin-bottom: 6px; font-size: 0.76rem;
+      transition: border-left-color 0.15s;
+    }
+    .reply-item:hover { border-left-color: var(--border2); }
+
+    .reply-meta {
+      color: var(--text-faint); margin-bottom: 4px;
+      font-size: 0.7rem; display: flex; flex-wrap: wrap; gap: 10px;
+    }
+    .reply-meta .reply-no { color: var(--accent2); }
+
+    .reply-body { color: #8fa8bc; line-height: 1.55; word-break: break-word; }
+
+    .media-thumb {
+      width: 60px; height: 60px; object-fit: cover;
+      border-radius: 2px; margin-right: 8px;
+      vertical-align: middle; cursor: pointer;
+      opacity: 0.8; transition: opacity 0.15s; float: left;
+    }
+    .media-thumb:hover { opacity: 1; }
+    .reply-body-inner { overflow: hidden; }
+
+    .empty {
+      font-size: 0.82rem; color: var(--text-faint);
+      font-style: italic; padding: 10px 0;
+    }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+      .actions { flex-direction: column; }
+      button { width: 100%; text-align: center; }
+      .post-head { padding-right: 0; }
+      .thread-id { position: static; margin-bottom: 6px; display: block; }
+    }
+  </style>
 </head>
 <body>
-  <div class="app-shell">
-    <header class="hero">
-      <div>
-        <h1>ImagePorn Board Scraper</h1>
-        <p>Browser implementation of <code>main.py</code> and <code>post.py</code>: scrape Reddit hot posts, load comments, persist scraped links locally, and post scraped content to Firebase.</p>
-      </div>
-      <div class="actions">
-        <button id="scrapeButton">Scrape Reddit Hot Posts</button>
-        <button id="postButton">Post All Scraped Posts</button>
-        <button id="clearLinksButton">Clear Stored Links</button>
-        <button id="downloadJsonButton">Download data.json</button>
-        <button id="downloadLinksButton">Download links.txt</button>
-      </div>
-    </header>
+<div class="wrap">
 
-    <section class="status-panel">
-      <div class="status-block">
-        <strong>Status</strong>
-        <div id="statusLog">Ready to scrape.</div>
-      </div>
-      <div class="status-block stats">
-        <strong>Saved Data</strong>
-        <div>Stored posts: <span id="postsCount">0</span></div>
-        <div>Stored links: <span id="linksCount">0</span></div>
-      </div>
-    </section>
+  <div class="header-block">
+    <h1>4chan <span>/</span> Board Scraper</h1>
+    <p class="subtitle">Scrape threads from 4chan boards → store locally → post to Firebase Realtime DB</p>
 
-    <section class="posts-section">
-      <h2>Scraped Posts</h2>
-      <div id="postsContainer" class="posts-container">
-        <p class="empty-state">No posts loaded yet.</p>
+    <div class="config-row">
+      <div class="config-field">
+        <label>Board</label>
+        <select id="boardSelect">
+          <option value="g">/g/ — Technology</option>
+          <option value="v">/v/ — Video Games</option>
+          <option value="sci">/sci/ — Science</option>
+          <option value="pol">/pol/ — Politics</option>
+          <option value="b">/b/ — Random</option>
+          <option value="fit">/fit/ — Fitness</option>
+          <option value="biz">/biz/ — Business</option>
+          <option value="a">/a/ — Anime</option>
+          <option value="mu">/mu/ — Music</option>
+          <option value="news">/news/ — News</option>
+          <option value="his">/his/ — History</option>
+          <option value="int">/int/ — International</option>
+          <option value="wsg">/wsg/ — Worksafe GIF</option>
+          <option value="ck">/ck/ — Food &amp; Cooking</option>
+          <option value="diy">/diy/ — Do It Yourself</option>
+        </select>
       </div>
-    </section>
+      <div class="config-field">
+        <label>Max Threads</label>
+        <input type="number" id="maxThreads" value="10" min="1" max="50" />
+      </div>
+      <div class="config-field">
+        <label>Min Replies</label>
+        <input type="number" id="minReplies" value="5" min="0" max="999" />
+      </div>
+      <div class="config-field">
+        <label>Max Replies/Thread</label>
+        <input type="number" id="maxReplies" value="15" min="1" max="100" />
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>ℹ CORS proxy:</strong>
+      4chan's API (a.4cdn.org) only allows browser requests originating from 4chan.org itself.
+      This tool automatically routes API calls through <code>corsproxy.io</code> (with two
+      fallback proxies) so the browser can read responses from any origin.
+      Images and videos load directly — no proxy needed for media.
+      <br>
+      <span class="proxy-pill" id="proxyPill" style="display:none">
+        <span class="dot"></span><span id="proxyPillText">Checking…</span>
+      </span>
+    </div>
+
+    <div class="actions">
+      <button id="btnScrape">▶ Scrape Board</button>
+      <button id="btnPost">↑ Post to Firebase</button>
+      <button id="btnClear" class="danger">✕ Clear Data</button>
+      <button id="btnDlJson">⬇ data.json</button>
+      <button id="btnDlLinks">⬇ thread-ids.txt</button>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="status-row">
+      <div class="log-box" id="logBox">Initialising…</div>
+      <div class="stats-box">
+        <div class="stat">Threads stored: <span id="postsCount">0</span></div>
+        <div class="stat">Thread IDs seen: <span id="linksCount">0</span></div>
+        <div class="stat">Unposted: <span id="unpostedCount">0</span></div>
+        <div class="stat">Board: <span id="currentBoard">—</span></div>
+        <div class="stat">Via: <span id="proxyLabel">—</span></div>
+      </div>
+    </div>
   </div>
 
-  <script src="script.js"></script>
+  <h2>Scraped Threads</h2>
+  <div id="postsContainer"><p class="empty">No threads scraped yet.</p></div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// Firebase init
+// ════════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyDKtOdU4PmUQE8_vwaz6k_w_BjRe466dyg",
+  authDomain:        "data-b61c7.firebaseapp.com",
+  databaseURL:       "https://data-b61c7-default-rtdb.firebaseio.com",
+  projectId:         "data-b61c7",
+  storageBucket:     "data-b61c7.firebasestorage.app",
+  messagingSenderId: "570416012500",
+  appId:             "1:570416012500:web:66921eb421f776b01d2f41"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ════════════════════════════════════════════════════════════
+// Constants
+// ════════════════════════════════════════════════════════════
+const CHAN_API   = 'https://a.4cdn.org';
+const CHAN_MEDIA = 'https://i.4cdn.org';
+
+// CORS proxy list — browser cannot hit a.4cdn.org directly due to CORS restrictions.
+// We try each in sequence and remember which one last succeeded.
+const PROXY_FNS = [
+  u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://thingproxy.freeboard.io/fetch/${u}`,
+];
+
+// FIX: workingProxyIdx now indexes into PROXY_FNS only (0 = first proxy).
+// Direct fetch is always tried LAST (it virtually never works from non-4chan origins).
+let workingProxyIdx = 0;
+
+const KEY_IDS   = 'scraper4chan_ids_v2';
+const KEY_POSTS = 'scraper4chan_posts_v2';
+
+// ════════════════════════════════════════════════════════════
+// DOM refs
+// ════════════════════════════════════════════════════════════
+const logBox        = document.getElementById('logBox');
+const postsCountEl  = document.getElementById('postsCount');
+const linksCountEl  = document.getElementById('linksCount');
+const unpostedEl    = document.getElementById('unpostedCount');
+const boardEl       = document.getElementById('currentBoard');
+const proxyLabelEl  = document.getElementById('proxyLabel');
+const proxyPill     = document.getElementById('proxyPill');
+const proxyPillText = document.getElementById('proxyPillText');
+const postsContainer= document.getElementById('postsContainer');
+const progressWrap  = document.getElementById('progressWrap');
+const progressBar   = document.getElementById('progressBar');
+const btnScrape     = document.getElementById('btnScrape');
+const btnPost       = document.getElementById('btnPost');
+const btnClear      = document.getElementById('btnClear');
+const btnDlJson     = document.getElementById('btnDlJson');
+const btnDlLinks    = document.getElementById('btnDlLinks');
+const boardSelect   = document.getElementById('boardSelect');
+const maxThreadsEl  = document.getElementById('maxThreads');
+const minRepliesEl  = document.getElementById('minReplies');
+const maxRepliesEl  = document.getElementById('maxReplies');
+
+const getBoard      = () => boardSelect.value;
+const getMaxThreads = () => Math.max(1,  parseInt(maxThreadsEl.value) || 10);
+const getMinReplies = () => Math.max(0,  parseInt(minRepliesEl.value) || 0);
+const getMaxReplies = () => Math.max(1,  parseInt(maxRepliesEl.value) || 15);
+
+// ════════════════════════════════════════════════════════════
+// Logging
+// ════════════════════════════════════════════════════════════
+const _lines = [];
+
+function log(msg) {
+  const t = new Date().toLocaleTimeString();
+  _lines.splice(0, _lines.length, `[${t}] ${msg}`);
+  _flush();
+}
+function appendLog(msg) {
+  _lines.push(msg);
+  _flush();
+}
+function _flush() {
+  logBox.textContent = _lines.join('\n');
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+// ════════════════════════════════════════════════════════════
+// Progress bar
+// ════════════════════════════════════════════════════════════
+function setProgress(pct) {
+  if (pct <= 0) { progressWrap.classList.remove('visible'); return; }
+  progressWrap.classList.add('visible');
+  progressBar.style.width = Math.min(100, pct) + '%';
+}
+
+// ════════════════════════════════════════════════════════════
+// Helpers
+// ════════════════════════════════════════════════════════════
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function esc(v) {
+  if (typeof v !== 'string') return '';
+  return v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          .replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
+}
+
+// ════════════════════════════════════════════════════════════
+// FIX: stripChanHtml — now removes >>quotelinks, dead links, and
+// all other HTML artifacts before storing plain text.
+// Also strips standalone >>NUMBER cross-post references that remain
+// after HTML stripping (e.g. from text already decoded).
+// ════════════════════════════════════════════════════════════
+function stripChanHtml(html) {
+  if (!html) return '';
+
+  let text = html
+    // Convert line breaks first
+    .replace(/<br\s*\/?>/gi, '\n')
+    // FIX: Remove quotelink anchors entirely (>>12345678 references) — both the
+    // tag and its inner text, so they don't appear as >>NUMBER in the output.
+    .replace(/<a[^>]*class="[^"]*quotelink[^"]*"[^>]*>.*?<\/a>/gi, '')
+    // Remove all remaining anchor tags but keep their text (e.g. http:// links)
+    .replace(/<a [^>]*>([^<]*)<\/a>/gi, '$1')
+    // Strip all remaining HTML tags
+    .replace(/<[^>]+>/g, '')
+    // Decode HTML entities
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+
+  // FIX: After HTML stripping, also remove any residual >>NUMBER patterns
+  // (reply references that weren't wrapped in quotelink anchors, or already-decoded text).
+  // Matches >>digits optionally followed by whitespace/punctuation on that portion of the line.
+  text = text.replace(/>>(\d+)/g, '').replace(/^[ \t]+$/gm, '');
+
+  // Collapse 3+ consecutive newlines to 2 (avoid huge blank gaps)
+  text = text.replace(/\n{3,}/g, '\n\n');
+
+  return text.trim();
+}
+
+// FIX: sanitizeForFirebase — strips >>quotes again at post time as a safety net,
+// collapses extra whitespace, and returns null if the result is blank.
+function sanitizeForFirebase(text) {
+  if (typeof text !== 'string') return null;
+  let out = text
+    .replace(/>>(\d+)/g, '')          // remove any remaining quote refs
+    .replace(/[ \t]+/g, ' ')          // collapse inline whitespace
+    .replace(/\n{3,}/g, '\n\n')       // collapse excess newlines
+    .trim();
+  return out.length > 0 ? out : null; // return null if empty after cleanup
+}
+
+// Render plain-text as safe HTML with greentext spans
+function renderCommentHtml(text) {
+  if (!text) return '';
+  return text.split('\n').map(line => {
+    const safe = esc(line);
+    return line.startsWith('>') ? `<span class="gt">${safe}</span>` : safe;
+  }).join('<br>');
+}
+
+const thumbUrl = (board, tim)      => `${CHAN_MEDIA}/${board}/${tim}s.jpg`;
+const mediaUrl = (board, tim, ext) => `${CHAN_MEDIA}/${board}/${tim}${ext}`;
+
+// ════════════════════════════════════════════════════════════
+// Local storage helpers
+// ════════════════════════════════════════════════════════════
+function loadSeenIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(KEY_IDS) || '[]')); }
+  catch { return new Set(); }
+}
+function saveSeenIds(s) {
+  try { localStorage.setItem(KEY_IDS, JSON.stringify([...s])); }
+  catch (e) { appendLog(`Warning: could not save IDs — ${e.message}`); }
+}
+function loadPosts() {
+  try { return JSON.parse(localStorage.getItem(KEY_POSTS) || '[]'); }
+  catch { return []; }
+}
+function savePosts(arr) {
+  try { localStorage.setItem(KEY_POSTS, JSON.stringify(arr)); }
+  catch {
+    try {
+      localStorage.setItem(KEY_POSTS, JSON.stringify(arr.slice(-30)));
+      appendLog('Warning: storage full — kept newest 30 threads.');
+    } catch { appendLog('Error: localStorage completely full.'); }
+  }
+}
+function updateStats() {
+  const posts = loadPosts();
+  const ids   = loadSeenIds();
+  postsCountEl.textContent = posts.length;
+  linksCountEl.textContent = ids.size;
+  unpostedEl.textContent   = posts.filter(p => !p.posted && !p.skipped).length;
+  boardEl.textContent      = '/' + getBoard() + '/';
+}
+
+// ════════════════════════════════════════════════════════════
+// FIX: CORS-proxy fetch — proxy list is now the authoritative order.
+// Direct fetch is only attempted as a last resort (almost always fails).
+// workingProxyIdx correctly indexes into PROXY_FNS[].
+// ════════════════════════════════════════════════════════════
+async function fetchChan(apiUrl) {
+  // Build ordered candidate list starting from last-known-working proxy index,
+  // then rotating through the rest, with direct as final fallback.
+  const proxied = PROXY_FNS.map((fn, i) => ({ url: fn(apiUrl), label: new URL(fn(apiUrl)).hostname, idx: i }));
+  const ordered = [
+    ...proxied.slice(workingProxyIdx),
+    ...proxied.slice(0, workingProxyIdx),
+    { url: apiUrl, label: 'direct', idx: -1 },  // direct always last
+  ];
+
+  let lastErr = null;
+  for (const candidate of ordered) {
+    const { url, label, idx } = candidate;
+    try {
+      const res = await fetch(url, {
+        method:      'GET',
+        mode:        'cors',
+        credentials: 'omit',
+        headers: {
+          'Accept':        'application/json',
+          'Cache-Control': 'no-cache',
+        },
+      });
+
+      if (res.status === 404) return null;  // thread pruned — not an error
+
+      if (res.status === 403 || res.status === 429 || res.status === 0) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+
+      // Remember this proxy for future calls
+      if (idx !== -1 && idx !== workingProxyIdx) {
+        workingProxyIdx = idx;
+        proxyLabelEl.textContent  = label;
+        proxyPill.style.display   = 'inline-flex';
+        proxyPill.className       = 'proxy-pill ok';
+        proxyPillText.textContent = `Using ${label}`;
+      } else if (idx === -1) {
+        proxyLabelEl.textContent  = 'direct';
+        proxyPill.style.display   = 'inline-flex';
+        proxyPill.className       = 'proxy-pill ok';
+        proxyPillText.textContent = 'Using direct';
+      }
+      return data;
+
+    } catch (err) {
+      lastErr = err;
+      appendLog(`  [${label}] ${err.message} — trying next…`);
+      await sleep(400);
+    }
+  }
+
+  proxyPill.style.display   = 'inline-flex';
+  proxyPill.className       = 'proxy-pill err';
+  proxyPillText.textContent = 'All routes failed';
+  throw new Error(
+    `Could not reach 4chan API. All proxies failed. Last: ${lastErr?.message}.\n` +
+    `Check your internet connection and try again.`
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// FIX: Proxy probe — uses /boards.json (lightweight, ~2KB) instead of
+// /g/catalog.json (~500KB) just to test connectivity.
+// ════════════════════════════════════════════════════════════
+async function probeProxy() {
+  proxyPill.style.display   = 'inline-flex';
+  proxyPill.className       = 'proxy-pill';
+  proxyPillText.textContent = 'Checking connection…';
+  proxyLabelEl.textContent  = '…';
+  try {
+    await fetchChan(`${CHAN_API}/boards.json`);
+    appendLog('✓ Connection OK — ready to scrape.');
+  } catch {
+    appendLog('⚠ Could not reach 4chan API on startup. Will retry when you click Scrape.');
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// 4chan catalog + thread fetching
+// ════════════════════════════════════════════════════════════
+async function fetchCatalog(board) {
+  const data = await fetchChan(`${CHAN_API}/${board}/catalog.json`);
+  if (!data) throw new Error(`/${board}/ catalog returned empty (board may not exist).`);
+  if (!Array.isArray(data)) throw new Error(`Unexpected catalog format for /${board}/.`);
+
+  const threads = [];
+  for (const page of data) {
+    if (page && Array.isArray(page.threads)) {
+      for (const t of page.threads) threads.push(t);
+    }
+  }
+  threads.sort((a, b) => (b.replies || 0) - (a.replies || 0));
+  return threads;
+}
+
+async function fetchThread(board, no) {
+  const data = await fetchChan(`${CHAN_API}/${board}/thread/${no}.json`);
+  if (!data || !data.posts?.length) return null;
+  return data.posts;
+}
+
+// ════════════════════════════════════════════════════════════
+// Build normalized thread object from raw API data
+// ════════════════════════════════════════════════════════════
+function buildThread(board, catalogEntry, posts, maxReplies) {
+  const op       = posts[0];
+  const hasMedia = !!(op.tim && op.ext);
+  const isVideo  = hasMedia && /\.(webm|mp4)$/i.test(op.ext);
+
+  const replyPosts = posts.slice(1, maxReplies + 1).map(p => {
+    const hi = !!(p.tim && p.ext);
+    return {
+      no:       p.no,
+      author:   p.name  || 'Anonymous',
+      trip:     p.trip  || '',
+      body:     stripChanHtml(p.com || ''),
+      time:     p.time  || 0,
+      has_img:  hi,
+      thumb:    hi ? thumbUrl(board, p.tim) : '',
+      media:    hi ? mediaUrl(board, p.tim, p.ext) : '',
+      is_video: hi && /\.(webm|mp4)$/i.test(p.ext || ''),
+    };
+  });
+
+  return {
+    id:          String(op.no),
+    board,
+    subject:     stripChanHtml(op.sub  || ''),
+    body:        stripChanHtml(op.com  || ''),
+    author:      op.name || 'Anonymous',
+    trip:        op.trip || '',
+    replies:     catalogEntry.replies || 0,
+    images:      catalogEntry.images  || 0,
+    time:        op.time || 0,
+    url:         `https://boards.4chan.org/${board}/thread/${op.no}`,
+    thumb_url:   hasMedia ? thumbUrl(board, op.tim) : '',
+    media_url:   hasMedia ? mediaUrl(board, op.tim, op.ext) : '',
+    is_video:    isVideo,
+    reply_posts: replyPosts,
+    posted:      false,
+    skipped:     false,
+    firebase_id: null,
+  };
+}
+
+async function scrapeChan() {
+  const board      = getBoard();
+  const maxThreads = getMaxThreads();
+  const minReplies = getMinReplies();
+  const maxReplies = getMaxReplies();
+  const seenIds    = loadSeenIds();
+  const results    = [];
+
+  log(`Fetching /${board}/ catalog…`);
+  setProgress(5);
+
+  const catalog = await fetchCatalog(board);
+  appendLog(`Catalog: ${catalog.length} threads. Filtering (≥${minReplies} replies, skip seen)…`);
+
+  const candidates = catalog.filter(t =>
+    (t.replies || 0) >= minReplies && !seenIds.has(String(t.no))
+  );
+
+  if (!candidates.length) {
+    appendLog('No new candidates. Lower "Min Replies" or click "Clear Data" to rescrape.');
+    return results;
+  }
+
+  const toFetch = candidates.slice(0, maxThreads);
+  appendLog(`Fetching ${toFetch.length} thread(s)…`);
+
+  for (let i = 0; i < toFetch.length; i++) {
+    const entry = toFetch[i];
+    const label = entry.sub
+      ? stripChanHtml(entry.sub).slice(0, 55)
+      : `#${entry.no}`;
+    appendLog(`[${i + 1}/${toFetch.length}] ${label}`);
+    setProgress(5 + ((i + 1) / toFetch.length) * 88);
+
+    try {
+      const posts = await fetchThread(board, entry.no);
+      if (!posts) {
+        appendLog('  ↳ Thread 404 (pruned) — skipped.');
+        seenIds.add(String(entry.no));
+        saveSeenIds(seenIds);
+        continue;
+      }
+      const thread = buildThread(board, entry, posts, maxReplies);
+      appendLog(`  ↳ ${thread.reply_posts.length} replies.`);
+      results.push(thread);
+      seenIds.add(thread.id);
+      saveSeenIds(seenIds);
+    } catch (err) {
+      appendLog(`  ↳ Error: ${err.message}`);
+    }
+
+    // 4chan rate limit — 1 req/sec per board per IP
+    if (i < toFetch.length - 1) await sleep(1100);
+  }
+
+  return results;
+}
+
+// ════════════════════════════════════════════════════════════
+// Firebase push
+// ════════════════════════════════════════════════════════════
+
+// FIX: pushReply — sanitizes body and skips entirely if blank after cleanup.
+// Returns true if posted, false if skipped.
+async function pushReply(postId, reply) {
+  const cleanBody = sanitizeForFirebase(reply.body);
+
+  // FIX: skip replies with no meaningful text content
+  if (!cleanBody) return false;
+
+  const ref = db.ref('comments').push();
+  await ref.set({
+    id:        ref.key,
+    post_id:   postId,
+    parent_id: null,
+    text:      cleanBody,
+    anon:      `Anon${Math.floor(1000 + Math.random() * 9000)}`,
+    timestamp: Math.floor(Date.now() / 1000),
+  });
+  return true;
+}
+
+// ════════════════════════════════════════════════════════════
+// Skip filters — FIX: simplified logic.
+// A thread is skipped if it matches ANY pattern from either group,
+// or matches any of the unconditional patterns.
+// ════════════════════════════════════════════════════════════
+const SKIP_PATTERNS_A = [
+  /Related boards\s*\(their OP may have additional resources\)/i,
+  /OP Pasta/i,
+  /Archive Alternative/i,
+  /Local Install/i,
+  /Online Image Generators/i,
+  /Download Models/i,
+  /FAQ/i,
+];
+
+const SKIP_PATTERNS_B = [
+  /\/aco\/sdg/i,
+  /\/d\/ddg/i,
+  /\/e\/edg/i,
+  /\/g\/sdg/i,
+  /\/h\/hdg/i,
+  /\/trash\/sdg/i,
+  /\/degen\//i,
+  /CivitAI/i,
+  /HuggingFace/i,
+  /Gemini/i,
+  /Tensor/i,
+  /NAI/i,
+];
+
+// Unconditional patterns — thread is skipped if any match
+const SKIP_UNCONDITIONAL = [
+  /https?:\/\/i\.4cdn\.org\/b\/177907980300/i,
+  /\/b\/ thread #949186616/i,
+];
+
+function shouldSkipThread(thread) {
+  const text = [thread.subject, thread.body, ...thread.reply_posts.map(r => r.body)]
+    .filter(Boolean).join('\n');
+
+  // FIX: unconditional patterns are checked independently
+  if (SKIP_UNCONDITIONAL.some(rx => rx.test(text))) return true;
+
+  // FIX: A thread is skipped if it matches BOTH at least one A pattern AND at least one B pattern.
+  // This preserves the original intent (e.g. skip AI image gen general threads).
+  const matchesA = SKIP_PATTERNS_A.some(rx => rx.test(text));
+  const matchesB = SKIP_PATTERNS_B.some(rx => rx.test(text));
+  if (matchesA && matchesB) return true;
+
+  return false;
+}
+
+// FIX: pushThread — sanitizes all text fields before posting.
+// Builds a clean message string; skips posting if it would be blank.
+async function pushThread(thread) {
+  const cleanSubject = sanitizeForFirebase(thread.subject);
+  const cleanBody    = sanitizeForFirebase(thread.body);
+
+  // Compose the message from non-empty parts
+  const messageParts = [cleanSubject, cleanBody, thread.media_url || ''].filter(Boolean);
+  const message      = messageParts.join('\n').trim();
+
+  // FIX: refuse to post a thread that has no meaningful content at all
+  if (!message) {
+    throw new Error('Thread has no postable content after sanitization.');
+  }
+
+  const ref    = db.ref('posts').push();
+  const postId = ref.key;
+
+  await ref.set({
+    post_id:    postId,
+    title:      cleanSubject || `/${thread.board}/ thread #${thread.id}`,
+    message,
+    thumb:      thread.thumb_url || null,
+    anon:       `Anon${Math.floor(1000 + Math.random() * 9000)}`,
+    timestamp:  Math.floor(Date.now() / 1000),
+    source_url: thread.url,
+    board:      thread.board,
+  });
+
+  let repliesPosted = 0;
+  let repliesSkipped = 0;
+  for (const reply of thread.reply_posts) {
+    const posted = await pushReply(postId, reply);
+    if (posted) repliesPosted++;
+    else repliesSkipped++;
+    await sleep(200);
+  }
+
+  if (repliesSkipped > 0) {
+    appendLog(`  ↳ Replies: ${repliesPosted} posted, ${repliesSkipped} blank/skipped.`);
+  }
+
+  return postId;
+}
+
+// ════════════════════════════════════════════════════════════
+// Button actions
+// ════════════════════════════════════════════════════════════
+async function runScrape() {
+  btnScrape.disabled = true;
+  try {
+    const newThreads = await scrapeChan();
+    if (!newThreads.length) { setProgress(0); return; }
+
+    // FIX: always reload from storage before merging to avoid clobbering concurrent saves
+    const existing = loadPosts();
+    const all = [...existing, ...newThreads];
+    savePosts(all);
+    updateStats();        // FIX: update stats before render so counts are fresh
+    renderPosts(all);
+    setProgress(100);
+    appendLog(`✓ Done. ${newThreads.length} thread(s) saved.`);
+    setTimeout(() => setProgress(0), 1500);
+  } catch (err) {
+    appendLog(`✗ ${err.message}`);
+    console.error(err);
+    setProgress(0);
+  } finally {
+    btnScrape.disabled = false;
+  }
+}
+
+async function runPost() {
+  btnPost.disabled = true;
+  try {
+    const posts    = loadPosts();
+    const unposted = posts.filter(p => !p.posted && !p.skipped);
+    if (!unposted.length) { log('No unposted threads.'); return; }
+
+    log(`Posting ${unposted.length} thread(s) to Firebase…`);
+    let ok = 0, skipped = 0;
+
+    for (let i = 0; i < unposted.length; i++) {
+      const t = unposted[i];
+      setProgress(((i + 1) / unposted.length) * 100);
+      appendLog(`↑ [${i + 1}/${unposted.length}] ${(t.subject || t.id).slice(0, 60)}`);
+
+      if (shouldSkipThread(t)) {
+        appendLog(`  ⚠ Filtered: ${t.id} (${t.subject || 'no subject'})`);
+        t.skipped = true;
+        skipped++;
+        savePosts(posts);
+        updateStats();
+        continue;
+      }
+
+      try {
+        t.firebase_id = await pushThread(t);
+        t.posted = true;
+        ok++;
+      } catch (err) {
+        appendLog(`  ✗ ${err.message}`);
+      }
+      savePosts(posts);
+      updateStats();
+      await sleep(1500);
+    }
+
+    renderPosts(posts);
+    appendLog(`✓ Done. ${ok} posted, ${skipped} filtered, ${unposted.length - ok - skipped} failed.`);
+    setTimeout(() => setProgress(0), 1500);
+  } catch (err) {
+    appendLog(`✗ ${err.message}`);
+    console.error(err);
+  } finally {
+    btnPost.disabled = false;
+    setProgress(0);
+  }
+}
+
+function clearData() {
+  if (!confirm('Clear all stored threads and seen IDs?')) return;
+  localStorage.removeItem(KEY_IDS);
+  localStorage.removeItem(KEY_POSTS);
+  updateStats();
+  renderPosts([]);
+  log('Cleared. Ready for a fresh scrape.');
+}
+
+function downloadJson() {
+  const posts = loadPosts();
+  const blob  = new Blob(
+    [JSON.stringify({ threads: posts }, null, 2)],
+    { type: 'application/json' }
+  );
+  triggerDownload(blob, '4chan-data.json');
+}
+
+function downloadLinks() {
+  const ids  = [...loadSeenIds()];
+  const text = ids.length ? ids.join('\n') : '# No thread IDs yet';
+  triggerDownload(new Blob([text], { type: 'text/plain' }), 'thread-ids.txt');
+}
+
+function triggerDownload(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a   = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ════════════════════════════════════════════════════════════
+// Render
+// ════════════════════════════════════════════════════════════
+
+// FIX: renderMedia uses esc() consistently for all attribute values
+function renderMedia(t) {
+  if (!t.media_url) return '';
+  const src = esc(t.media_url);
+  return t.is_video
+    ? `<div class="media-wrap"><video controls muted playsinline preload="none" src="${src}"></video></div>`
+    : `<div class="media-wrap"><img src="${src}" alt="OP image" loading="lazy"
+         onerror="this.style.opacity='.25';this.title='Image unavailable'"
+         onclick="this.classList.toggle('expanded')" /></div>`;
+}
+
+function renderReply(r) {
+  const tHtml = r.has_img && r.thumb
+    ? `<img class="media-thumb" src="${esc(r.thumb)}" loading="lazy"
+         onerror="this.style.display='none'"
+         onclick="window.open('${esc(r.media)}','_blank')" />`
+    : '';
+  const tripStr  = r.trip ? `<span style="color:var(--green)">${esc(r.trip)}</span>` : '';
+  const dateStr  = r.time ? new Date(r.time * 1000).toLocaleString() : '';
+  const vidBadge = r.is_video ? `<span style="color:var(--yellow)">WEBM</span>` : '';
+
+  // FIX: show a visual indicator for replies that have no text (image-only posts)
+  const bodyHtml = r.body
+    ? renderCommentHtml(r.body)
+    : '<span style="color:var(--text-faint);font-style:italic">[image only]</span>';
+
+  return `
+    <li class="reply-item">
+      <div class="reply-meta">
+        <span class="reply-no">#${r.no}</span>
+        <span>${esc(r.author)}${tripStr}</span>
+        <span>${dateStr}</span>${vidBadge}
+      </div>
+      <div class="reply-body">
+        ${tHtml}<div class="reply-body-inner">${bodyHtml}</div>
+      </div>
+    </li>`;
+}
+
+function renderPosts(posts) {
+  if (!posts?.length) {
+    postsContainer.innerHTML = '<p class="empty">No threads scraped yet.</p>';
+    return;
+  }
+
+  postsContainer.innerHTML = posts.slice().reverse().map(t => {
+    const title   = t.subject || `Thread #${t.id}`;
+    const dateStr = t.time ? new Date(t.time * 1000).toLocaleString() : '';
+    const fbNote  = t.firebase_id
+      ? `<span style="font-size:.68rem;color:var(--text-faint)"> · fb:${esc(t.firebase_id)}</span>`
+      : '';
+    const tripStr = t.trip
+      ? `<span style="color:var(--green);font-size:.75rem">${esc(t.trip)}</span> `
+      : '';
+
+    // FIX: skipped badge gets distinct yellow styling
+    const badges = [
+      t.posted  ? '<span class="badge">Posted</span>'          : '',
+      t.skipped ? '<span class="badge skipped">Filtered</span>': '',
+    ].filter(Boolean).join(' ');
+
+    return `
+      <div class="post-card${t.posted ? ' is-posted' : ''}">
+        <div class="thread-id">#${esc(t.id)}</div>
+        <div class="post-head">
+          <span class="board-tag">/${esc(t.board)}/</span>
+          <h3>${esc(title)}</h3>
+          ${badges}
+        </div>
+        <div class="post-meta">
+          <span>${tripStr}${esc(t.author)}</span>
+          <span>${dateStr}</span>
+          <span class="replies-count">↩ ${t.replies}</span>
+          <span class="img-count">🖼 ${t.images}</span>
+          <a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">Open on 4chan ↗</a>
+          ${fbNote}
+        </div>
+        ${renderMedia(t)}
+        ${t.body ? `<div class="post-comment">${renderCommentHtml(t.body)}</div>` : ''}
+        ${t.reply_posts?.length
+          ? `<div class="replies-label">Replies loaded: ${t.reply_posts.length}</div>
+             <ul class="replies-list">${t.reply_posts.map(renderReply).join('')}</ul>`
+          : '<p class="empty">No replies loaded.</p>'}
+      </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+// Wire events + init
+// ════════════════════════════════════════════════════════════
+btnScrape.addEventListener('click',  runScrape);
+btnPost.addEventListener('click',    runPost);
+btnClear.addEventListener('click',   clearData);
+btnDlJson.addEventListener('click',  downloadJson);
+btnDlLinks.addEventListener('click', downloadLinks);
+boardSelect.addEventListener('change', updateStats);
+
+updateStats();
+renderPosts(loadPosts());
+probeProxy();
+</script>
 </body>
 </html>
